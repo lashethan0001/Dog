@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>PupPicker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #1f2a24;
+    --paper: #e9efe9;
+    --card: #ffffff;
+    --yes: #2fae66;
+    --no: #f2685c;
+    --amber: #f0b03e;
+    --muted: #6d7a72;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: radial-gradient(120% 90% at 50% -10%, #f5f8f3 0%, var(--paper) 70%);
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    min-height: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px 16px 28px;
+  }
+  .head { width: min(360px, 88vw); margin-bottom: 6px; }
+  .head-row { display: flex; align-items: baseline; justify-content: space-between; }
+  h1 {
+    font-family: 'Fraunces', serif; font-weight: 700; font-size: 26px;
+    margin: 0; letter-spacing: -0.02em;
+  }
+  .count { font-weight: 800; color: var(--muted); font-size: 14px; }
+  .bar { height: 6px; background: #d4ded4; border-radius: 999px; margin-top: 8px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--yes); border-radius: 999px; transition: width .3s ease; }
+
+  .stage {
+    position: relative;
+    width: min(360px, 88vw);
+    height: min(440px, 64vh);
+    margin-top: 8px;
+  }
+  .card {
+    position: absolute; inset: 0;
+    background: var(--card); border-radius: 26px;
+    box-shadow: 0 18px 40px rgba(31,42,36,.18);
+    overflow: hidden; touch-action: none;
+  }
+  .card.next { transform: scale(.94) translateY(14px); z-index: 1; transition: transform .3s ease; }
+  .card.top { z-index: 2; cursor: grab; }
+  .card.top.grabbing { cursor: grabbing; }
+
+  .photo {
+    width: 100%; height: 100%; background: #dfe6df;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .grad {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 40px 18px 16px;
+    background: linear-gradient(to top, rgba(20,28,23,.78) 0%, rgba(20,28,23,0) 100%);
+  }
+  .name {
+    font-family: 'Fraunces', serif; color: #fff; font-size: 24px; font-weight: 600;
+    line-height: 1.1; text-shadow: 0 1px 8px rgba(0,0,0,.3);
+  }
+
+  .stamp {
+    position: absolute; top: 26px; z-index: 5; opacity: 0; pointer-events: none;
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 30px;
+    letter-spacing: .06em; padding: 4px 14px; border-radius: 12px;
+    background: rgba(255,255,255,.85); border: 5px solid;
+  }
+  .stamp.yes { left: 22px; transform: rotate(-14deg); border-color: var(--yes); color: var(--yes); }
+  .stamp.no  { right: 22px; transform: rotate(14deg); border-color: var(--no); color: var(--no); }
+
+  .controls { display: flex; align-items: center; gap: 22px; margin-top: 22px; }
+  .rb {
+    border-radius: 50%; border: 2px solid; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform .12s ease;
+    box-shadow: 0 6px 16px rgba(31,42,36,.14);
+  }
+  .rb:active { transform: scale(.9); }
+  .rb.big { width: 66px; height: 66px; font-size: 28px; }
+  .rb.sm  { width: 50px; height: 50px; font-size: 22px; }
+  .rb.no  { border-color: var(--no); color: var(--no); }
+  .rb.yes { border-color: var(--yes); color: var(--yes); }
+  .rb.amber { border-color: var(--amber); color: var(--amber); }
+  .rb:disabled { border-color: #c7d0c7; color: #c7d0c7; box-shadow: none; cursor: default; }
+
+  .hint { color: var(--muted); font-size: 13px; margin-top: 16px; font-weight: 600; }
+
+  .spinner {
+    width: 34px; height: 34px; border: 3px solid #cbd6cb;
+    border-top-color: var(--muted); border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .retry {
+    font-family: 'Nunito', sans-serif; font-weight: 700;
+    background: #fff; border: 2px solid var(--no); color: var(--no);
+    border-radius: 999px; padding: 8px 16px; cursor: pointer;
+  }
+
+  /* End screen */
+  .end { max-width: 560px; width: 100%; text-align: center; }
+  .end h2 { font-family: 'Fraunces', serif; font-size: 30px; margin: 10px 0 4px; }
+  .end p { color: var(--muted); margin: 0 0 18px; font-weight: 600; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px; margin-bottom: 22px;
+  }
+  .tile { background: var(--card); border-radius: 16px; overflow: hidden; box-shadow: 0 6px 18px rgba(31,42,36,.10); }
+  .tile .sq { aspect-ratio: 1/1; background: #dfe6df; }
+  .tile .sq img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .cap { padding: 8px 8px 10px; font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .restart {
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 16px;
+    color: #fff; background: var(--ink); border: none; border-radius: 999px;
+    padding: 13px 28px; cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card, .bar > i, .rb { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+"use strict";
+
+// Friendly name -> Dog CEO API slug.
+var BREEDS = [
+  ["Affenpinscher","affenpinscher"],["African Wild Dog","african"],["Airedale Terrier","airedale"],
+  ["Akita","akita"],["Appenzeller","appenzeller"],["Australian Cattle Dog","cattledog/australian"],
+  ["Australian Shepherd","australian/shepherd"],["Basenji","basenji"],["Beagle","beagle"],
+  ["Bernese Mountain Dog","mountain/bernese"],["Bichon Frise","frise/bichon"],["Bloodhound","hound/blood"],
+  ["Border Collie","collie/border"],["Border Terrier","terrier/border"],["Borzoi","borzoi"],
+  ["Boston Terrier","bulldog/boston"],["Bouvier","bouvier"],["Boxer","boxer"],
+  ["Brittany Spaniel","spaniel/brittany"],["Cairn Terrier","terrier/cairn"],["Cardigan Corgi","corgi/cardigan"],
+  ["Cavalier King Charles","spaniel/blenheim"],["Chesapeake Bay Retriever","retriever/chesapeake"],
+  ["Chihuahua","chihuahua"],["Chow Chow","chow"],["Clumber Spaniel","clumber"],["Cockapoo","cockapoo"],
+  ["Cocker Spaniel","spaniel/cocker"],["Coton de Tulear","cotondetulear"],["Curly-Coated Retriever","retriever/curly"],
+  ["Dachshund","dachshund"],["Dalmatian","dalmatian"],["Doberman","doberman"],["English Bulldog","bulldog/english"],
+  ["English Setter","setter/english"],["English Springer Spaniel","springer/english"],["Entlebucher","entlebucher"],
+  ["Eskimo Dog","eskimo"],["Finnish Lapphund","finnish/lapphund"],["Flat-Coated Retriever","retriever/flatcoated"],
+  ["French Bulldog","bulldog/french"],["German Shepherd","germanshepherd"],["German Shorthaired Pointer","pointer/german"],
+  ["Giant Schnauzer","schnauzer/giant"],["Golden Retriever","retriever/golden"],["Gordon Setter","setter/gordon"],
+  ["Great Dane","dane/great"],["Great Pyrenees","pyrenees"],["Italian Greyhound","greyhound/italian"],
+  ["Groenendael","groenendael"],["Havanese","havanese"],["Ibizan Hound","hound/ibizan"],["Irish Setter","setter/irish"],
+  ["Irish Wolfhound","wolfhound/irish"],["Keeshond","keeshond"],["Kelpie","kelpie"],["Komondor","komondor"],
+  ["Kuvasz","kuvasz"],["Labradoodle","labradoodle"],["Labrador Retriever","retriever/labrador"],["Leonberger","leonberg"],
+  ["Lhasa Apso","lhasa"],["Malamute","malamute"],["Malinois","malinois"],["Maltese","maltese"],
+  ["Miniature Pinscher","pinscher/miniature"],["Miniature Schnauzer","schnauzer/miniature"],["Newfoundland","newfoundland"],
+  ["Norwegian Elkhound","elkhound/norwegian"],["Norwich Terrier","terrier/norwich"],["Otterhound","otterhound"],
+  ["Papillon","papillon"],["Pekingese","pekinese"],["Pembroke Corgi","pembroke"],["Pomeranian","pomeranian"],
+  ["Standard Poodle","poodle/standard"],["Toy Poodle","poodle/toy"],["Pug","pug"],["Redbone Coonhound","redbone"],
+  ["Rhodesian Ridgeback","ridgeback/rhodesian"],["Rottweiler","rottweiler"],["Saluki","saluki"],["Samoyed","samoyed"],
+  ["Schipperke","schipperke"],["Scottish Terrier","terrier/scottish"],["Shetland Sheepdog","sheepdog/shetland"],
+  ["Shiba Inu","shiba"],["Shih Tzu","shihtzu"],["Siberian Husky","husky"],["St. Bernard","stbernard"],
+  ["Sussex Spaniel","spaniel/sussex"],["Tibetan Mastiff","mastiff/tibetan"],["Vizsla","vizsla"],
+  ["Weimaraner","weimaraner"],["Welsh Terrier","terrier/welsh"],["West Highland Terrier","terrier/westhighland"],
+  ["Whippet","whippet"],["Wheaten Terrier","terrier/wheaten"],["Yorkshire Terrier","terrier/yorkshire"],
+  ["Staffordshire Bull Terrier","bullterrier/staffordshire"]
+];
+
+var SWIPE_THRESHOLD = 110;
+var app = document.getElementById("app");
+
+// ---- State ----
+var index = 0;
+var results = [];          // { name, slug, url, liked }
+var cache = {};            // i -> { status: 'loading'|'ready'|'error', url }
+var drag = { x: 0, y: 0, active: false };
+var flyOut = null;         // 'left' | 'right' | null
+var dragStart = null;
+var topCardEl = null;
+
+// ---- Image fetching ----
+function fetchImage(i) {
+  if (i >= BREEDS.length) return;
+  if (cache[i] && cache[i].status !== "error") return;
+  var slug = BREEDS[i][1];
+  cache[i] = { status: "loading", url: null };
+  fetch("https://dog.ceo/api/breed/" + slug + "/images/random")
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.status === "success") cache[i] = { status: "ready", url: d.message };
+      else cache[i] = { status: "error", url: null };
+      if (i === index || i === index + 1) render();
+    })
+    .catch(function () {
+      cache[i] = { status: "error", url: null };
+      if (i === index || i === index + 1) render();
+    });
+}
+function prefetch() { for (var k = index; k < index + 4; k++) fetchImage(k); }
+
+// ---- Actions ----
+function decide(liked) {
+  if (flyOut || index >= BREEDS.length) return;
+  var entry = cache[index];
+  results.push({
+    name: BREEDS[index][0],
+    slug: BREEDS[index][1],
+    url: entry ? entry.url : null,
+    liked: liked
+  });
+  flyOut = liked ? "right" : "left";
+  render();
+  setTimeout(function () {
+    flyOut = null;
+    drag = { x: 0, y: 0, active: false };
+    index += 1;
+    prefetch();
+    render();
+  }, 280);
+}
+function undo() {
+  if (flyOut || results.length === 0) return;
+  results.pop();
+  index = Math.max(0, index - 1);
+  render();
+}
+function restart() {
+  index = 0; results = []; cache = {}; drag = { x: 0, y: 0, active: false }; flyOut = null;
+  prefetch(); render();
+}
+
+// ---- Drag wiring (attached after each render to the top card) ----
+function attachDrag(el) {
+  el.addEventListener("pointerdown", function (e) {
+    if (flyOut) return;
+    dragStart = { x: e.clientX, y: e.clientY };
+    drag = { x: 0, y: 0, active: true };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    el.classList.add("grabbing");
+    applyTopTransform();
+  });
+  el.addEventListener("pointermove", function (e) {
+    if (!dragStart) return;
+    drag = { x: e.clientX - dragStart.x, y: e.clientY - dragStart.y, active: true };
+    applyTopTransform();
+  });
+  function up() {
+    if (!dragStart) return;
+    var x = drag.x;
+    dragStart = null;
+    el.classList.remove("grabbing");
+    if (x > SWIPE_THRESHOLD) decide(true);
+    else if (x < -SWIPE_THRESHOLD) decide(false);
+    else { drag = { x: 0, y: 0, active: false }; applyTopTransform(); }
+  }
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+}
+
+// Update only the transform + stamps during a drag (cheap, no full re-render).
+function applyTopTransform() {
+  if (!topCardEl) return;
+  var rot = drag.x / 18;
+  if (flyOut) {
+    topCardEl.style.transition = "transform .32s cubic-bezier(.2,.8,.3,1)";
+    topCardEl.style.transform =
+      flyOut === "right" ? "translateX(140%) rotate(22deg)" : "translateX(-140%) rotate(-22deg)";
+  } else {
+    topCardEl.style.transition = drag.active ? "none" : "transform .32s cubic-bezier(.2,.8,.3,1)";
+    topCardEl.style.transform = "translate(" + drag.x + "px," + drag.y + "px) rotate(" + rot + "deg)";
+  }
+  var yes = topCardEl.querySelector(".stamp.yes");
+  var no = topCardEl.querySelector(".stamp.no");
+  if (yes) yes.style.opacity = Math.min(1, Math.max(0, drag.x / SWIPE_THRESHOLD));
+  if (no) no.style.opacity = Math.min(1, Math.max(0, -drag.x / SWIPE_THRESHOLD));
+}
+
+// ---- Rendering ----
+function el(tag, cls, html) {
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html != null) n.innerHTML = html;
+  return n;
+}
+
+function photoNode(i) {
+  var wrap = el("div", "photo");
+  var entry = cache[i] || { status: "loading" };
+  if (entry.status === "ready") {
+    var img = el("img");
+    img.src = entry.url; img.alt = BREEDS[i][0]; img.draggable = false;
+    wrap.appendChild(img);
+  } else if (entry.status === "error") {
+    var btn = el("button", "retry", "Couldn't load — retry");
+    btn.addEventListener("click", function (e) { e.stopPropagation(); fetchImage(i); render(); });
+    wrap.appendChild(btn);
+  } else {
+    wrap.appendChild(el("div", "spinner"));
+  }
+  return wrap;
+}
+
+function cardInner(i, isTop) {
+  var frag = document.createDocumentFragment();
+  if (isTop) {
+    frag.appendChild(el("div", "stamp yes", "YES"));
+    frag.appendChild(el("div", "stamp no", "NOPE"));
+  }
+  frag.appendChild(photoNode(i));
+  var grad = el("div", "grad");
+  grad.appendChild(el("div", "name", BREEDS[i][0]));
+  frag.appendChild(grad);
+  return frag;
+}
+
+function render() {
+  app.innerHTML = "";
+  topCardEl = null;
+
+  var done = index >= BREEDS.length;
+
+  // Header
+  var head = el("div", "head");
+  var row = el("div", "head-row");
+  row.appendChild(el("h1", null, "PupPicker"));
+  var shown = done ? BREEDS.length : Math.min(index + 1, BREEDS.length);
+  row.appendChild(el("span", "count", shown + " / " + BREEDS.length));
+  head.appendChild(row);
+  var bar = el("div", "bar");
+  var fill = el("div");
+  fill.style.cssText = "height:100%;background:var(--yes);border-radius:999px;transition:width .3s ease;width:" +
+    Math.round((index / BREEDS.length) * 100) + "%";
+  bar.appendChild(fill);
+  head.appendChild(bar);
+  app.appendChild(head);
+
+  if (done) {
+    var liked = results.filter(function (r) { return r.liked; });
+    var end = el("div", "end");
+    end.appendChild(el("h2", null, "Your pack of " + liked.length));
+    end.appendChild(el("p", null,
+      liked.length === 0 ? "A tough crowd. Not a single tail wagged."
+                         : "The very good dogs you swiped right on."));
+    if (liked.length > 0) {
+      var grid = el("div", "grid");
+      liked.forEach(function (d) {
+        var tile = el("div", "tile");
+        var sq = el("div", "sq");
+        if (d.url) { var im = el("img"); im.src = d.url; im.alt = d.name; sq.appendChild(im); }
+        tile.appendChild(sq);
+        tile.appendChild(el("div", "cap", d.name));
+        grid.appendChild(tile);
+      });
+      end.appendChild(grid);
+    }
+    var rs = el("button", "restart", "Start over");
+    rs.addEventListener("click", restart);
+    end.appendChild(rs);
+    app.appendChild(end);
+    return;
+  }
+
+  // Stage with cards
+  var stage = el("div", "stage");
+
+  if (index + 1 < BREEDS.length) {
+    var next = el("div", "card next");
+    next.appendChild(cardInner(index + 1, false));
+    stage.appendChild(next);
+  }
+
+  var top = el("div", "card top");
+  top.appendChild(cardInner(index, true));
+  stage.appendChild(top);
+  topCardEl = top;
+  attachDrag(top);
+  applyTopTransform();
+
+  app.appendChild(stage);
+
+  // Controls
+  var controls = el("div", "controls");
+  var noBtn = el("button", "rb big no", "&#10005;");
+  noBtn.setAttribute("aria-label", "No");
+  noBtn.addEventListener("click", function () { decide(false); });
+
+  var undoBtn = el("button", "rb sm amber", "&#8617;");
+  undoBtn.setAttribute("aria-label", "Undo");
+  undoBtn.disabled = results.length === 0;
+  undoBtn.addEventListener("click", undo);
+
+  var yesBtn = el("button", "rb big yes", "&#9829;");
+  yesBtn.setAttribute("aria-label", "Yes");
+  yesBtn.addEventListener("click", function () { decide(true); });
+
+  controls.appendChild(noBtn);
+  controls.appendChild(undoBtn);
+  controls.appendChild(yesBtn);
+  app.appendChild(controls);
+
+  app.appendChild(el("p", "hint", "Drag the card, tap a button, or use \u2190 / \u2192 keys"));
+}
+
+// Keyboard
+window.addEventListener("keydown", function (e) {
+  if (index >= BREEDS.length) return;
+  if (e.key === "ArrowLeft") decide(false);
+  else if (e.key === "ArrowRight") decide(true);
+  else if (e.key === "ArrowUp") undo();
+});
+
+// Go
+prefetch();
+render();
+</script>
+</body>
+</html>
